@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import FirebaseAuthService from './FirebaseAuthService';
 import FirebaseFirestoreService from './FirebaseFirestoreService';
 import LoginForm from './components/LoginForm';
@@ -8,16 +8,58 @@ import './App.css';
 
 function App() {
   const [user, setUser] = useState(null);
+  const [recipes, setRecipes] = useState([]);
+
+  useEffect(() => {
+    fetchRecipes()
+      .then(fetchedRecipes => setRecipes(fetchedRecipes))
+      .catch(error => {
+        console.error(error.message);
+        throw error;
+      });
+  }, [user]);
 
   FirebaseAuthService.subscribeToAuthChanges(setUser);
+
+  const fetchRecipes = async () => {
+    let fetchedRecipes = [];
+    try {
+      const response = await FirebaseFirestoreService.readDocuments('recipes');
+
+      const newRecipes = response.docs.map(recipeDoc => {
+        const id = recipeDoc.id;
+        const data = recipeDoc.data();
+        data.publishDate = new Date(data.publishDate.seconds * 1000);
+        return { ...data, id, }
+      });
+
+      fetchedRecipes = [...newRecipes];
+    }
+    catch (error) {
+      console.error(error.message); throw error;
+    }
+
+    return fetchedRecipes;
+  };
+
+  const handleFetchRecipes = async () => {
+    try {
+      const fetchedRecipes = await fetchRecipes();
+      setRecipes(fetchedRecipes);
+    }
+    catch (error) {
+      console.error(error.message);
+      throw (error);
+    }
+  };
 
   const handleAddRecipe = async (newRecipe) => {
     try {
       const response = await FirebaseFirestoreService.createDocument('recipes', newRecipe);
-
+      handleFetchRecipes();
       alert(`Successfully created a recipe with ID = ${response.id}`);
     }
-    catch(error) {
+    catch (error) {
       alert(error.message);
     }
   }
@@ -29,8 +71,28 @@ function App() {
         <LoginForm existingUser={user} />
       </div>
       <div className="main">
+      <div className="center">
+        <div className="recipe-list-box">
+          {
+            recipes && recipes.length > 0 ? (
+              <div className="recipe-list">
+                {
+                  recipes.map((recipe) => {
+                    return (
+                      <div className="recipe-card" key={recipe.id}>
+                        <div className="recipe-name">{recipe.name}</div>
+                        <div className="recipe-field">Category: {recipe.category}</div>
+                        <div className="recipe-field">Publish Date: {recipe.publishDate.toString()}</div>
+                      </div>
+                    );
+                  })
+                }
+              </div>) : null
+          }
+        </div>
+      </div>
         {
-          user ? <AddEditRecipeForm handleAddRecipe={handleAddRecipe}/> : null
+          user ? <AddEditRecipeForm handleAddRecipe={handleAddRecipe} /> : null
         }
 
       </div>
