@@ -22,9 +22,18 @@ function App() {
   FirebaseAuthService.subscribeToAuthChanges(setUser);
 
   const fetchRecipes = async () => {
+    const queries = [];
+    if(!user) {
+      queries.push({
+        field: 'isPublished',
+        condition: '==',
+        value: true
+      });
+    };
+
     let fetchedRecipes = [];
     try {
-      const response = await FirebaseFirestoreService.readDocuments('recipes');
+      const response = await FirebaseFirestoreService.readDocuments({collection: 'recipes', queries: queries });
 
       const newRecipes = response.docs.map(recipeDoc => {
         const id = recipeDoc.id;
@@ -62,6 +71,26 @@ function App() {
     catch (error) {
       alert(error.message);
     }
+  };
+
+  const lookupCategoryLabel = (categoryKey) => {
+    const categories = {
+      breadsSandwichesAndPizza: 'Breads, Sandwiches & Pizza',
+      eggsAndBreakfast: 'Eggs & Breakfast',
+      desertsAndBakedGoods: 'Deserts & Baked Goods',
+      fishAndSeafood: 'Fish & Seafood',
+      vegetables: 'Vegetables'
+    };
+
+    return categories[categoryKey];
+  };
+
+  const formatDate = (date) => {
+    const day = date.getUTCDate();
+    const month = date.getUTCMonth() + 1;
+    const year = date.getFullYear();
+
+    return `${month}-${day}-${year}`;
   }
 
   return (
@@ -80,9 +109,14 @@ function App() {
                   recipes.map((recipe) => {
                     return (
                       <div className="recipe-card" key={recipe.id}>
+                        {
+                          recipe.isPublished ? null : (
+                            <div className="unpublished">UNPUBLISHED</div>
+                          )
+                        }
                         <div className="recipe-name">{recipe.name}</div>
-                        <div className="recipe-field">Category: {recipe.category}</div>
-                        <div className="recipe-field">Publish Date: {recipe.publishDate.toString()}</div>
+                        <div className="recipe-field">Category: {lookupCategoryLabel(recipe.category)}</div>
+                        <div className="recipe-field">Publish Date: {formatDate(recipe.publishDate)}</div>
                       </div>
                     );
                   })

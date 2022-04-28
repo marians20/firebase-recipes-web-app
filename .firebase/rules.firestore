@@ -19,7 +19,7 @@ service cloud.firestore {
         data.ingredients.size() > 0;
     }
 
-      allow read: if true;
+      allow read: if request.auth != null || request.auth == null && resource.data.isPublished == true;
       allow create, update: if request.auth != null && reciepHasOnlyAllowedFields() && isRecipeValid();
       allow delete: if request.auth != null;
 
